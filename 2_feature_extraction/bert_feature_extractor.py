@@ -22,21 +22,22 @@ logger.handlers = [sh]
 
 class BERTFeatureExtractor(object):
     def __init__(self, graph_path, vocab_path,
-                 preprocessor=stub_preprocessor,
+                 preprocessor=stub_preprocessor, use_gpu=True,
                  batch_size=256, seq_len=64, space_escape='_'):
 
         self.batch_size = batch_size
-
-        self._seq_len = seq_len
-        self._space_escape = space_escape
+        self.seq_len = seq_len
                 
-        self._graphdef = graph_path
         self._tokenizer = FullTokenizer(vocab_path)
         self._preprocessor = preprocessor
+        self._graphdef = graph_path
 
+        self._use_gpu = use_gpu
+        self._config = self._build_config()
         self._graph = tf.Graph()
-        self._sess = tf.Session(graph=self._graph)
+        self._sess = tf.Session(graph=self._graph, config=self._config)
         self._input_names = ['input_ids', 'input_mask', 'input_type_ids']
+        self._space_escape = space_escape
         self._text_samples = None
         
         with self._graph.as_default():
@@ -46,6 +47,11 @@ class BERTFeatureExtractor(object):
                 input_fn=self._input_fn, yield_single_examples=False)
         self.transform(self._space_escape)
         logger.info('Initialized.')
+
+    def _build_config(self):
+        config = tf.ConfigProto(device_count={'GPU': 1 if self._use_gpu else 0})
+        config.gpu_options.allow_growth = True
+        return config
             
     def _build_estimator(self):
         def model_fn(features, mode):
@@ -60,10 +66,7 @@ class BERTFeatureExtractor(object):
 
             return EstimatorSpec(mode=mode, predictions={'output': output[0]})
 
-        config = tf.ConfigProto()
-        config.gpu_options.allow_growth = True
-
-        return Estimator(model_fn=model_fn, config=RunConfig(session_config=config))
+        return Estimator(model_fn=model_fn, config=RunConfig(session_config=self._config))
 
     def _build_input_fn(self):
 
@@ -81,7 +84,7 @@ class BERTFeatureExtractor(object):
     def _build_feed_dict(self, texts):
       
         text_features = list(convert_lst_to_features(
-            texts, self._seq_len, self._seq_len, 
+            texts, self.seq_len, self.seq_len, 
             self._tokenizer, is_tokenized=False, mask_cls_sep=False))
         
         target_shape = (len(texts), -1)
@@ -111,7 +114,6 @@ class BERTFeatureExtractor(object):
         bar = Progbar(n_samples)
         
         mats = []
-
         for bi, text_batch in enumerate(batch(texts, self.batch_size)):
           
             self._text_samples = text_batch
