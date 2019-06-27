@@ -38,7 +38,7 @@ class BERTFeatureExtractor(object):
         self._sess = tf.Session(graph=self._graph, config=self._config)
         self._input_names = ['input_ids', 'input_mask', 'input_type_ids']
         self._space_escape = space_escape
-        self._text_samples = None
+        self._data_container = DataContainer()
         
         with self._graph.as_default():
             self._estimator = self._build_estimator()
@@ -72,7 +72,7 @@ class BERTFeatureExtractor(object):
 
         def generator():
             while True:
-                yield self._build_feed_dict(self._text_samples)
+                yield self._build_feed_dict(self._data_container.get())
 
         def input_fn():
             return tf.data.Dataset.from_generator(
@@ -116,9 +116,8 @@ class BERTFeatureExtractor(object):
         mats = []
         for bi, text_batch in enumerate(batch(texts, self.batch_size)):
           
-            self._text_samples = text_batch
+            self._data_container.set(text_batch)
             features = next(self._predict_fn)['output']
-            self._text_samples = None
             mats.append(features)
             
             if verbose:
@@ -135,7 +134,18 @@ class BERTFeatureExtractor(object):
         return self.transform(texts, verbose)
 
 
+class DataContainer:
+    def __init__(self):
+        self._samples = None
+
+    def set(self, samples):
+        self._samples = samples
+
+    def get(self):
+        return self._samples
+
+
 def batch(iterable, n=1):
-    l = len(iterable)
-    for ndx in range(0, l, n):
-        yield iterable[ndx:min(ndx + n, l)]
+    itr_len = len(iterable)
+    for ndx in range(0, itr_len, n):
+        yield iterable[ndx:min(ndx + n, itr_len)]
