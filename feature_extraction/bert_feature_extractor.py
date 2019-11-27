@@ -8,7 +8,7 @@ from tensorflow.python.estimator.model_fn import EstimatorSpec
 
 from tensorflow.keras.utils import Progbar
 
-from text_preprocessing import FullTokenizer, convert_lst_to_features, stub_preprocessor
+from feature_extraction.text_preprocessing import FullTokenizer, convert_lst_to_features, stub_preprocessor
 
 logger = logging.getLogger('tensorflow')
 logger.setLevel(logging.INFO)
