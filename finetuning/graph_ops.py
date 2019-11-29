@@ -1,5 +1,8 @@
 import tensorflow as tf
 
+from tensorflow.python.framework.graph_util import convert_variables_to_constants
+from tensorflow.python.tools.optimize_for_inference_lib import optimize_for_inference
+
 
 def freeze_session(session, keep_var_names=None, output_names=None, clear_devices=True):
     """
@@ -40,3 +43,44 @@ def load_graph(frozen_graph_filename):
     with tf.Graph().as_default() as graph:
         tf.import_graph_def(graph_def)
     return graph
+
+
+def freeze_keras_model(model, export_path=None, clear_devices=True):
+    """
+    Freezes the state of a session into a pruned computation graph.
+
+    @param model The Keras model to be optimized for inference.
+    @param clear_devices Remove the device directives from the graph for better portability.
+    @return The frozen graph definition.
+    """
+    from tensorflow.python.framework.graph_util import convert_variables_to_constants
+    from tensorflow.python.tools.optimize_for_inference_lib import optimize_for_inference
+    
+    sess = tf.keras.backend.get_session()
+    graph = sess.graph
+    
+    with graph.as_default():
+
+        input_tensors = model.inputs
+        output_tensors = model.outputs
+        dtypes = [t.dtype.as_datatype_enum for t in input_tensors]
+        input_ops = [t.name.rsplit(":", maxsplit=1)[0] for t in input_tensors]
+        output_ops = [t.name.rsplit(":", maxsplit=1)[0] for t in output_tensors]
+        
+        print(input_ops, output_ops)
+        
+        tmp_g = graph.as_graph_def()
+        if clear_devices:
+            for node in tmp_g.node:
+                node.device = ""
+        
+        tmp_g = optimize_for_inference(
+            tmp_g, input_ops, output_ops, dtypes, False)
+        
+        tmp_g = convert_variables_to_constants(sess, tmp_g, output_ops)
+        
+        if export_path is not None:
+            with tf.gfile.GFile(export_path, "wb") as f:
+                f.write(tmp_g.SerializeToString())
+        
+        return tmp_g
