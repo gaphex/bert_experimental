@@ -6,14 +6,14 @@ from finetuning.text_preprocessing import build_preprocessor
 
 
 class BertLayer(tf.keras.layers.Layer):
-    def __init__(self, bert_path, seq_len=64, n_tune_layers=3,
-                 pooling="cls", with_preprocessing=True, verbose=False,
+    def __init__(self, bert_path, seq_len=64, n_tune_layers=3, 
+                 pooling="cls", do_preprocessing=True, verbose=False,
                  tune_embeddings=False, trainable=True, **kwargs):
 
         self.trainable = trainable
         self.n_tune_layers = n_tune_layers
         self.tune_embeddings = tune_embeddings
-        self.w_preprocessing = with_preprocessing
+        self.do_preprocessing = do_preprocessing
 
         self.verbose = verbose
         self.seq_len = seq_len
@@ -30,7 +30,7 @@ class BertLayer(tf.keras.layers.Layer):
 
     def build(self, input_shape):
 
-        self.bert = hub.Module(self.build_abspath(self.bert_path),
+        self.bert = hub.Module(self.build_abspath(self.bert_path), 
                                trainable=self.trainable, name=f"{self.name}_module")
 
         trainable_layers = []
@@ -41,13 +41,10 @@ class BertLayer(tf.keras.layers.Layer):
             trainable_layers.append("pooler")
 
         if self.n_tune_layers > 0:
-            encoder_var_names = [
-                var.name for var in self.bert.variables if 'encoder' in var.name]
-            n_encoder_layers = int(
-                len(encoder_var_names) / self.var_per_encoder)
+            encoder_var_names = [var.name for var in self.bert.variables if 'encoder' in var.name]
+            n_encoder_layers = int(len(encoder_var_names) / self.var_per_encoder)
             for i in range(self.n_tune_layers):
-                trainable_layers.append(
-                    f"encoder/layer_{str(n_encoder_layers - 1 - i)}/")
+                trainable_layers.append(f"encoder/layer_{str(n_encoder_layers - 1 - i)}/")
 
         # Add module variables to layer's trainable weights
         for var in self.bert.variables:
@@ -67,24 +64,22 @@ class BertLayer(tf.keras.layers.Layer):
         super(BertLayer, self).build(input_shape)
 
     def build_abspath(self, path):
-        if path.startswith("http"):
+        if path.startswith("https://") or path.startswith("gs://"):
             return path
         else:
             return os.path.abspath(path)
 
     def build_preprocessor(self):
         sess = tf.keras.backend.get_session()
-        tokenization_info = self.bert(
-            signature="tokenization_info", as_dict=True)
+        tokenization_info = self.bert(signature="tokenization_info", as_dict=True)
         vocab_file, do_lower_case = sess.run([tokenization_info["vocab_file"],
                                               tokenization_info["do_lower_case"]])
-        self.preprocessor = build_preprocessor(
-            vocab_file, self.seq_len, do_lower_case)
+        self.preprocessor = build_preprocessor(vocab_file, self.seq_len, do_lower_case)
 
     def initialize_module(self):
         sess = tf.keras.backend.get_session()
 
-        vars_initialized = sess.run([tf.is_variable_initialized(var)
+        vars_initialized = sess.run([tf.is_variable_initialized(var) 
                                      for var in self.bert.variables])
 
         uninitialized = []
@@ -97,9 +92,10 @@ class BertLayer(tf.keras.layers.Layer):
 
     def call(self, input):
 
-        if self.w_preprocessing:
-            input = tf.numpy_function(self.preprocessor, [input], [
-                                      tf.int32, tf.int32, tf.int32])
+        if self.do_preprocessing:
+            input = tf.numpy_function(self.preprocessor, 
+                                      [input], [tf.int32, tf.int32, tf.int32], 
+                                      name='preprocessor')
             for feature in input:
                 feature.set_shape((None, self.seq_len))
 
@@ -108,8 +104,7 @@ class BertLayer(tf.keras.layers.Layer):
         bert_inputs = dict(
             input_ids=input_ids, input_mask=input_mask, segment_ids=segment_ids
         )
-        output = self.bert(inputs=bert_inputs,
-                           signature="tokens", as_dict=True)
+        output = self.bert(inputs=bert_inputs, signature="tokens", as_dict=True)
 
         if self.pooling == "cls":
             pooled = output["pooled_output"]
@@ -130,12 +125,12 @@ class BertLayer(tf.keras.layers.Layer):
 
     def get_config(self):
         config_dict = {
-            "bert_path": self.bert_path,
+            "bert_path": self.bert_path, 
             "seq_len": self.seq_len,
             "pooling": self.pooling,
             "n_tune_layers": self.n_tune_layers,
             "tune_embeddings": self.tune_embeddings,
-            "with_preprocessing": self.w_preprocessing,
+            "do_preprocessing": self.do_preprocessing,
             "verbose": self.verbose
         }
         super(BertLayer, self).get_config()
