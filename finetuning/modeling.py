@@ -226,7 +226,7 @@ class BertModel(object):
         # We "pool" the model by simply taking the hidden state corresponding
         # to the first token. We assume that this has been pre-trained
         first_token_tensor = tf.squeeze(self.sequence_output[:, 0:1, :], axis=1)
-        self.pooled_output = tf.layers.dense(
+        self.pooled_output = tf.keras.layers.Dense(
             first_token_tensor,
             config.hidden_size,
             activation=tf.tanh,
@@ -664,7 +664,7 @@ def attention_layer(from_tensor,
   to_tensor_2d = reshape_to_matrix(to_tensor)
 
   # `query_layer` = [B*F, N*H]
-  query_layer = tf.layers.dense(
+  query_layer = tf.keras.layers.Dense(
       from_tensor_2d,
       num_attention_heads * size_per_head,
       activation=query_act,
@@ -672,7 +672,7 @@ def attention_layer(from_tensor,
       kernel_initializer=create_initializer(initializer_range))
 
   # `key_layer` = [B*T, N*H]
-  key_layer = tf.layers.dense(
+  key_layer = tf.keras.layers.Dense(
       to_tensor_2d,
       num_attention_heads * size_per_head,
       activation=key_act,
@@ -680,7 +680,7 @@ def attention_layer(from_tensor,
       kernel_initializer=create_initializer(initializer_range))
 
   # `value_layer` = [B*T, N*H]
-  value_layer = tf.layers.dense(
+  value_layer = tf.keras.layers.Dense(
       to_tensor_2d,
       num_attention_heads * size_per_head,
       activation=value_act,
@@ -856,7 +856,7 @@ def transformer_model(input_tensor,
         # Run a linear projection of `hidden_size` then add a residual
         # with `layer_input`.
         with tf.compat.v1.variable_scope("output"):
-          attention_output = tf.layers.dense(
+          attention_output = tf.keras.layers.Dense(
               attention_output,
               hidden_size,
               kernel_initializer=create_initializer(initializer_range))
@@ -865,7 +865,7 @@ def transformer_model(input_tensor,
 
       # The activation is only applied to the "intermediate" hidden layer.
       with tf.compat.v1.variable_scope("intermediate"):
-        intermediate_output = tf.layers.dense(
+        intermediate_output = tf.keras.layers.Dense(
             attention_output,
             intermediate_size,
             activation=intermediate_act_fn,
@@ -873,7 +873,7 @@ def transformer_model(input_tensor,
 
       # Down-project back to `hidden_size` then add the residual.
       with tf.compat.v1.variable_scope("output"):
-        layer_output = tf.layers.dense(
+        layer_output = tf.keras.layers.Dense(
             intermediate_output,
             hidden_size,
             kernel_initializer=create_initializer(initializer_range))
