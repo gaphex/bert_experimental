@@ -91,7 +91,7 @@ class BertConfig(object):
   @classmethod
   def from_json_file(cls, json_file):
     """Constructs a `BertConfig` from a json file of parameters."""
-    with tf.gfile.GFile(json_file, "r") as reader:
+    with tf.io.gfile.GFile(json_file, "r") as reader:
       text = reader.read()
     return cls.from_dict(json.loads(text))
 
@@ -169,8 +169,8 @@ class BertModel(object):
     if token_type_ids is None:
       token_type_ids = tf.zeros(shape=[batch_size, seq_length], dtype=tf.int32)
 
-    with tf.variable_scope(scope, default_name="bert"):
-      with tf.variable_scope("embeddings"):
+    with tf.compat.v1.variable_scope(scope, default_name="bert"):
+      with tf.compat.v1.variable_scope("embeddings"):
         # Perform embedding lookup on the word ids.
         (self.embedding_output, self.embedding_table) = embedding_lookup(
             input_ids=input_ids,
@@ -356,7 +356,7 @@ def dropout(input_tensor, dropout_prob):
   if dropout_prob is None or dropout_prob == 0.0:
     return input_tensor
 
-  output = tf.nn.dropout(input_tensor, 1.0 - dropout_prob)
+  output = tf.nn.dropout(input_tensor, rate=dropout_prob)
   return output
 
 
@@ -407,7 +407,7 @@ def embedding_lookup(input_ids,
   if input_ids.shape.ndims == 2:
     input_ids = tf.expand_dims(input_ids, axis=[-1])
 
-  embedding_table = tf.get_variable(
+  embedding_table = tf.compat.v1.get_variable(
       name=word_embedding_name,
       shape=[vocab_size, embedding_size],
       initializer=create_initializer(initializer_range))
@@ -488,7 +488,7 @@ def embedding_postprocessor(input_tensor,
     output += token_type_embeddings
 
   if use_position_embeddings:
-    assert_op = tf.assert_less_equal(seq_length, max_position_embeddings)
+    assert_op = tf.compat.v1.assert_less_equal(seq_length, max_position_embeddings)
     with tf.control_dependencies([assert_op]):
       full_position_embeddings = tf.get_variable(
           name=position_embedding_name,
@@ -991,9 +991,9 @@ def build_module_fn(config_path, vocab_path, do_lower_case=True):
     def bert_module_fn(is_training):
         """Spec function for a token embedding module."""
 
-        input_ids = tf.placeholder(shape=[None, None], dtype=tf.int32, name="input_ids")
-        input_mask = tf.placeholder(shape=[None, None], dtype=tf.int32, name="input_mask")
-        token_type = tf.placeholder(shape=[None, None], dtype=tf.int32, name="segment_ids")
+        input_ids = tf.compat.v1.placeholder(shape=[None, None], dtype=tf.int32, name="input_ids")
+        input_mask = tf.compat.v1.placeholder(shape=[None, None], dtype=tf.int32, name="input_mask")
+        token_type = tf.compat.v1.placeholder(shape=[None, None], dtype=tf.int32, name="segment_ids")
 
         config = BertConfig.from_json_file(config_path)
         model = BertModel(config=config, is_training=is_training,
@@ -1006,8 +1006,8 @@ def build_module_fn(config_path, vocab_path, do_lower_case=True):
         vocab_file = tf.constant(value=vocab_path, dtype=tf.string, name="vocab_file")
         lower_case = tf.constant(do_lower_case)
 
-        tf.add_to_collection(tf.GraphKeys.ASSET_FILEPATHS, config_file)
-        tf.add_to_collection(tf.GraphKeys.ASSET_FILEPATHS, vocab_file)
+        tf.compat.v1.add_to_collection(tf.compat.v1.GraphKeys.ASSET_FILEPATHS, config_file)
+        tf.compat.v1.add_to_collection(tf.compat.v1.GraphKeys.ASSET_FILEPATHS, vocab_file)
         
         input_map = {"input_ids": input_ids,
                      "input_mask": input_mask,

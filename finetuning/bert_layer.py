@@ -70,16 +70,16 @@ class BertLayer(tf.keras.layers.Layer):
             return os.path.abspath(path)
 
     def build_preprocessor(self):
-        sess = tf.keras.backend.get_session()
+        sess = tf.compat.v1.keras.backend.get_session()
         tokenization_info = self.bert(signature="tokenization_info", as_dict=True)
         vocab_file, do_lower_case = sess.run([tokenization_info["vocab_file"],
                                               tokenization_info["do_lower_case"]])
         self.preprocessor = build_preprocessor(vocab_file, self.seq_len, do_lower_case)
 
     def initialize_module(self):
-        sess = tf.keras.backend.get_session()
+        sess = tf.compat.v1.keras.backend.get_session()
 
-        vars_initialized = sess.run([tf.is_variable_initialized(var) 
+        vars_initialized = sess.run([tf.compat.v1.is_variable_initialized(var) 
                                      for var in self.bert.variables])
 
         uninitialized = []
@@ -88,7 +88,7 @@ class BertLayer(tf.keras.layers.Layer):
                 uninitialized.append(var)
 
         if len(uninitialized):
-            sess.run(tf.variables_initializer(uninitialized))
+            sess.run(tf.compat.v1.variables_initializer(uninitialized))
 
     def call(self, input):
 
