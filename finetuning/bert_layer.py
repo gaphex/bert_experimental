@@ -90,7 +90,7 @@ class BertLayer(tf.keras.layers.Layer):
         if len(uninitialized):
             sess.run(tf.compat.v1.variables_initializer(uninitialized))
 
-    def call(self, input):
+    def call(self, input, return_seq_output=False):
 
         if self.do_preprocessing:
             input = tf.numpy_function(self.preprocessor, 
@@ -105,23 +105,27 @@ class BertLayer(tf.keras.layers.Layer):
             input_ids=input_ids, input_mask=input_mask, segment_ids=segment_ids
         )
         output = self.bert(inputs=bert_inputs, signature="tokens", as_dict=True)
+        seq_output = output["sequence_output"]
 
         if self.pooling == "cls":
             pooled = output["pooled_output"]
         else:
-            result = output["sequence_output"]
-
             input_mask = tf.cast(input_mask, tf.float32)
             mul_mask = lambda x, m: x * tf.expand_dims(m, axis=-1)
             masked_reduce_mean = lambda x, m: tf.reduce_sum(mul_mask(x, m), axis=1) / (
                     tf.reduce_sum(m, axis=1, keepdims=True) + 1e-10)
 
             if self.pooling == "mean":
-                pooled = masked_reduce_mean(result, input_mask)
+                pooled = masked_reduce_mean(seq_output, input_mask)
             else:
-                pooled = mul_mask(result, input_mask)
+                pooled = mul_mask(seq_output, input_mask)
 
-        return pooled
+        if return_seq_output:
+            return_elements = [pooled, seq_output]
+        else:
+            return_elements = pooled
+
+        return return_elements
 
     def get_config(self):
         config_dict = {
