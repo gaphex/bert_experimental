@@ -7,7 +7,7 @@ from finetuning.text_preprocessing import build_preprocessor
 
 class BertLayer(tf.keras.layers.Layer):
     def __init__(self, bert_path, seq_len=64, n_tune_layers=3, 
-                 pooling="cls", do_preprocessing=True, verbose=False,
+                 pooling="mean", do_preprocessing=True, verbose=False,
                  tune_embeddings=False, return_seq_output=False,
                  trainable=True, **kwargs):
 
@@ -137,6 +137,8 @@ class BertLayer(tf.keras.layers.Layer):
             "n_tune_layers": self.n_tune_layers,
             "tune_embeddings": self.tune_embeddings,
             "do_preprocessing": self.do_preprocessing,
+            "return_seq_output": self.return_seq_output,
+            "trainable": self.trainable,
             "verbose": self.verbose
         }
         super(BertLayer, self).get_config()
