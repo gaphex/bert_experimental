@@ -92,7 +92,7 @@ class BertLayer(tf.keras.layers.Layer):
         if len(uninitialized):
             sess.run(tf.compat.v1.variables_initializer(uninitialized))
 
-    def call(self, input, return_seq_output=False):
+    def call(self, input):
 
         if self.do_preprocessing:
             input = tf.numpy_function(self.preprocessor, 
