@@ -143,8 +143,9 @@ class BertLayer(tf.keras.layers.Layer):
             "n_tune_layers": self.n_tune_layers,
             "tune_embeddings": self.tune_embeddings,
             "do_preprocessing": self.do_preprocessing,
-            "return_seq_output": self.return_seq_output,
+            "use_layers": self.use_layers,
             "trainable": self.trainable,
+            "as_dict": self.as_dict,
             "verbose": self.verbose
         }
         super(BertLayer, self).get_config()
