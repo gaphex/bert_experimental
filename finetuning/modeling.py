@@ -986,7 +986,7 @@ def assert_rank(tensor, expected_rank, name=None):
         "`%d` (shape = %s) is not equal to the expected rank `%s`" %
         (name, scope_name, actual_rank, str(tensor.shape), str(expected_rank)))
 
-def build_module_fn(config_path, vocab_path, do_lower_case=True):
+def build_module_fn(config_path, vocab_path, do_lower_case=True, seq_layer=-1, tok_layer=-7):
 
     def bert_module_fn(is_training):
         """Spec function for a token embedding module."""
@@ -999,7 +999,8 @@ def build_module_fn(config_path, vocab_path, do_lower_case=True):
         model = BertModel(config=config, is_training=is_training,
                           input_ids=input_ids, input_mask=input_mask, token_type_ids=token_type)
           
-        seq_output = model.all_encoder_layers[-1]
+        seq_output = model.all_encoder_layers[seq_layer]
+        tok_output = model.all_encoder_layers[tok_layer]
         pool_output = model.get_pooled_output()
 
         config_file = tf.constant(value=config_path, dtype=tf.string, name="config_file")
@@ -1014,7 +1015,8 @@ def build_module_fn(config_path, vocab_path, do_lower_case=True):
                      "segment_ids": token_type}
         
         output_map = {"pooled_output": pool_output,
-                      "sequence_output": seq_output}
+                      "sequence_output": seq_output,
+                      "token_output": tok_output}
 
         output_info_map = {"vocab_file": vocab_file,
                            "do_lower_case": lower_case}
@@ -1024,7 +1026,8 @@ def build_module_fn(config_path, vocab_path, do_lower_case=True):
 
     return bert_module_fn
 
-def build_bert_module(config_path, vocab_path, ckpt_path, out_path="bert_module"):
+def build_bert_module(config_path, vocab_path, ckpt_path, out_path, 
+                      seq_layer=-1, tok_layer=-7):
 
     tags_and_args = []
     for is_training in (True, False):
@@ -1033,6 +1036,6 @@ def build_bert_module(config_path, vocab_path, ckpt_path, out_path="bert_module"
         tags.add("train")
       tags_and_args.append((tags, dict(is_training=is_training)))
 
-    module_fn = build_module_fn(config_path, vocab_path)
+    module_fn = build_module_fn(config_path, vocab_path, seq_layer=seq_layer, tok_layer=tok_layer)
     spec = hub.create_module_spec(module_fn, tags_and_args=tags_and_args)
     spec.export(out_path, checkpoint_path=ckpt_path)
