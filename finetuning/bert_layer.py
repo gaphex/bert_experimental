@@ -8,13 +8,15 @@ from finetuning.text_preprocessing import build_preprocessor
 class BertLayer(tf.keras.layers.Layer):
     def __init__(self, bert_path, seq_len=64, n_tune_layers=3, 
                  pooling="cls", do_preprocessing=True, verbose=False,
-                 tune_embeddings=False, trainable=True, use_layers=None, **kwargs):
+                 tune_embeddings=False, trainable=True, use_layers=None, 
+                 as_dict=False, **kwargs):
 
         self.trainable = trainable
         self.n_tune_layers = n_tune_layers
         self.tune_embeddings = tune_embeddings
         self.do_preprocessing = do_preprocessing
 
+        self.as_dict = as_dict
         self.verbose = verbose
         self.seq_len = seq_len
         self.pooling = pooling
@@ -73,16 +75,16 @@ class BertLayer(tf.keras.layers.Layer):
             return os.path.abspath(path)
 
     def build_preprocessor(self):
-        sess = tf.keras.backend.get_session()
+        sess = tf.compat.v1.keras.backend.get_session()
         tokenization_info = self.bert(signature="tokenization_info", as_dict=True)
         vocab_file, do_lower_case = sess.run([tokenization_info["vocab_file"],
                                               tokenization_info["do_lower_case"]])
         self.preprocessor = build_preprocessor(vocab_file, self.seq_len, do_lower_case)
 
     def initialize_module(self):
-        sess = tf.keras.backend.get_session()
+        sess = tf.compat.v1.keras.backend.get_session()
 
-        vars_initialized = sess.run([tf.is_variable_initialized(var) 
+        vars_initialized = sess.run([tf.compat.v1.is_variable_initialized(var) 
                                      for var in self.bert.variables])
 
         uninitialized = []
@@ -91,7 +93,7 @@ class BertLayer(tf.keras.layers.Layer):
                 uninitialized.append(var)
 
         if len(uninitialized):
-            sess.run(tf.variables_initializer(uninitialized))
+            sess.run(tf.compat.v1.variables_initializer(uninitialized))
 
     def call(self, input):
 
@@ -108,23 +110,30 @@ class BertLayer(tf.keras.layers.Layer):
             input_ids=input_ids, input_mask=input_mask, segment_ids=segment_ids
         )
         output = self.bert(inputs=bert_inputs, signature="tokens", as_dict=True)
+        seq_output = output["sequence_output"]
 
         if self.pooling == "cls":
             pooled = output["pooled_output"]
         else:
-            result = output["sequence_output"]
-
             input_mask = tf.cast(input_mask, tf.float32)
             mul_mask = lambda x, m: x * tf.expand_dims(m, axis=-1)
             masked_reduce_mean = lambda x, m: tf.reduce_sum(mul_mask(x, m), axis=1) / (
                     tf.reduce_sum(m, axis=1, keepdims=True) + 1e-10)
 
             if self.pooling == "mean":
-                pooled = masked_reduce_mean(result, input_mask)
+                pooled = masked_reduce_mean(seq_output, input_mask)
             else:
-                pooled = mul_mask(result, input_mask)
+                pooled = mul_mask(seq_output, input_mask)
 
-        return pooled
+        if self.as_dict:
+            output = {
+                "sequence_output": seq_output,
+                "pooled_output": pooled,
+            }
+        else:
+            output = pooled
+
+        return output
 
     def get_config(self):
         config_dict = {
@@ -134,6 +143,8 @@ class BertLayer(tf.keras.layers.Layer):
             "n_tune_layers": self.n_tune_layers,
             "tune_embeddings": self.tune_embeddings,
             "do_preprocessing": self.do_preprocessing,
+            "return_seq_output": self.return_seq_output,
+            "trainable": self.trainable,
             "verbose": self.verbose
         }
         super(BertLayer, self).get_config()
