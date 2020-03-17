@@ -110,13 +110,16 @@ class BertLayer(tf.keras.layers.Layer):
             input_ids=input_ids, input_mask=input_mask, segment_ids=segment_ids
         )
         output = self.bert(inputs=bert_inputs, signature="tokens", as_dict=True)
+        
+        input_mask = tf.cast(input_mask, tf.float32)
+        mul_mask = lambda x, m: x * tf.expand_dims(m, axis=-1)
+            
         seq_output = output["sequence_output"]
-
+        tok_output = mul_mask(output["token_output"], input_mask)
+        
         if self.pooling == "cls":
             pooled = output["pooled_output"]
         else:
-            input_mask = tf.cast(input_mask, tf.float32)
-            mul_mask = lambda x, m: x * tf.expand_dims(m, axis=-1)
             masked_reduce_mean = lambda x, m: tf.reduce_sum(mul_mask(x, m), axis=1) / (
                     tf.reduce_sum(m, axis=1, keepdims=True) + 1e-10)
 
@@ -129,6 +132,7 @@ class BertLayer(tf.keras.layers.Layer):
             output = {
                 "sequence_output": seq_output,
                 "pooled_output": pooled,
+                "token_output": tok_output
             }
         else:
             output = pooled
