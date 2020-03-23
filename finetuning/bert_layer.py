@@ -115,7 +115,7 @@ class BertLayer(tf.keras.layers.Layer):
         mul_mask = lambda x, m: x * tf.expand_dims(m, axis=-1)
             
         seq_output = output["sequence_output"]
-        tok_output = mul_mask(output["token_output"], input_mask)
+        tok_output = mul_mask(output.get("token_output", seq_output)], input_mask)
         
         if self.pooling == "cls":
             pooled = output["pooled_output"]
