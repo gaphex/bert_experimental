@@ -425,8 +425,6 @@ def read_examples(str_list):
     unique_id = 0
     for s in str_list:
         line = convert_to_unicode(s)
-        if not line:
-            continue
         line = line.strip()
         text_a = None
         text_b = None
