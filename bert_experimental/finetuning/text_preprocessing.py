@@ -457,9 +457,15 @@ def features_to_arrays(features):
 
 def build_preprocessor(voc_path, seq_len, lower=True):
     tokenizer = FullTokenizer(vocab_file=voc_path, do_lower_case=lower)
+    EMPTY_STR = ""
+    PAD_STR = "pad"
+    NULL_VAL = 0
 
     def strings_to_arrays(str_list):
         str_list = np.atleast_1d(str_list).reshape((-1,))
+
+        empty_id = (str_list == EMPTY_STR).nonzero()[0]
+        str_list[empty_id] = PAD_STR
 
         examples = []
         for example in read_examples(str_list):
@@ -467,6 +473,10 @@ def build_preprocessor(voc_path, seq_len, lower=True):
 
         features = convert_examples_to_features(examples, seq_len, tokenizer)
         arrays = features_to_arrays(features)
+
+        for arr in arrays:
+            arr[empty_id] = NULL_VAL
+        str_list[empty_id] = EMPTY_STR
         return arrays
 
     return strings_to_arrays
