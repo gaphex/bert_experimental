@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-__version__ = 1.0
+__version__ = '1.0.2'
 
 setup(
     name='bert_experimental',
@@ -15,7 +15,7 @@ setup(
     packages=find_packages(),
     zip_safe=False,
     install_requires=[
-        'tensorflow==1.15.2',
+        'tensorflow>=1.15, <2.0',
         'tensorflow-hub==0.7.0',
         'numpy'
     ],
