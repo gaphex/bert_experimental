@@ -24,9 +24,9 @@ class BertLayer(tf.keras.layers.Layer):
         self.use_layers = use_layers
 
         self.var_per_encoder = 16
-        if self.pooling not in ["cls", "mean", None]:
+        if self.pooling not in ["cls", "mean", "sqrt_mean", None]:
             raise NameError(
-                f"Undefined pooling type (must be either 'cls', 'mean', or None, but is {self.pooling}"
+                f"Undefined pooling type (must be either 'cls', 'mean', 'sqrt_mean' or None, but is {self.pooling}"
             )
 
         super(BertLayer, self).__init__(**kwargs)
@@ -123,8 +123,15 @@ class BertLayer(tf.keras.layers.Layer):
             masked_reduce_mean = lambda x, m: tf.reduce_sum(mul_mask(x, m), axis=1) / (
                     tf.reduce_sum(m, axis=1, keepdims=True) + 1e-10)
 
+            masked_reduce_sqrt_mean = lambda x, m: tf.reduce_sum(mul_mask(x, m), axis=1) / (
+                tf.sqrt(tf.reduce_sum(m, axis=1, keepdims=True)) + 1e-10)
+
             if self.pooling == "mean":
                 pooled = masked_reduce_mean(seq_output, input_mask)
+
+            elif self.pooling == "sqrt_mean":
+                pooled = masked_reduce_sqrt_mean(seq_output, input_mask)
+
             else:
                 pooled = mul_mask(seq_output, input_mask)
 
