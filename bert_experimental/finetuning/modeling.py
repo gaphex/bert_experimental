@@ -129,6 +129,7 @@ class BertModel(object):
                input_ids,
                input_mask=None,
                token_type_ids=None,
+               input_state=None,
                use_one_hot_embeddings=False,
                scope=None):
     """Constructor for BertModel.
@@ -180,6 +181,7 @@ class BertModel(object):
             token_type_ids=token_type_ids,
             token_type_vocab_size=config.type_vocab_size,
             token_type_embedding_name="token_type_embeddings",
+            input_state=input_state,
             use_position_embeddings=True,
             position_embedding_name="position_embeddings",
             initializer_range=config.initializer_range,
@@ -412,6 +414,7 @@ def embedding_postprocessor(input_tensor,
                             token_type_ids=None,
                             token_type_vocab_size=16,
                             token_type_embedding_name="token_type_embeddings",
+                            input_state=None,
                             use_position_embeddings=True,
                             position_embedding_name="position_embeddings",
                             initializer_range=0.02,
@@ -495,6 +498,13 @@ def embedding_postprocessor(input_tensor,
       position_embeddings = tf.reshape(position_embeddings,
                                        position_broadcast_shape)
       output += position_embeddings
+
+  if input_state is not None:
+    tok_embs = output[:, 1:]
+    state_embs = output[:, 0]
+    state_embs += input_state
+    state_embs = tf.expand_dims(state_embs, 1, name=None)
+    output = tf.concat([state_embs, tok_embs], axis=1)
 
   output = layer_norm_and_dropout(output, dropout_prob)
   return output
