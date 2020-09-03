@@ -112,7 +112,6 @@ class BertLayer(tf.keras.layers.Layer):
         output = self.bert(inputs=bert_inputs, signature="tokens", as_dict=True)
         
         input_mask = tf.cast(input_mask, tf.float32)
-        mul_mask = lambda x, m: x * tf.expand_dims(m, axis=-1)
             
         seq_output = output["sequence_output"]
         tok_output = mul_mask(output.get("token_output", seq_output), input_mask)
@@ -269,7 +268,6 @@ class StatefulBertLayer(tf.keras.layers.Layer):
         output = self.bert(inputs=bert_inputs, signature="tokens", as_dict=True)
         
         input_mask = tf.cast(input_mask, tf.float32)
-        mul_mask = lambda x, m: x * tf.expand_dims(m, axis=-1)
             
         seq_output = output["sequence_output"]
         tok_output = mul_mask(output.get("token_output", seq_output), input_mask)
@@ -309,6 +307,8 @@ class StatefulBertLayer(tf.keras.layers.Layer):
         super(StatefulBertLayer, self).get_config()
         return config_dict
     
+def mul_mask(x, m):
+    return x * tf.expand_dims(m, axis=-1)
 
 def masked_reduce_mean(x, m):
     return tf.reduce_sum(mul_mask(x, m), axis=1) / (
@@ -317,3 +317,5 @@ def masked_reduce_mean(x, m):
 def masked_reduce_sqrt_mean(x, m):
     return tf.reduce_sum(mul_mask(x, m), axis=1) / (
         tf.sqrt(tf.reduce_sum(m, axis=1, keepdims=True)) + 1e-10)
+
+
