@@ -478,3 +478,4 @@ def build_preprocessor(voc_path, seq_len, lower=True):
         return arrays
 
     return strings_to_arrays
+    

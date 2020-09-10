@@ -5,15 +5,16 @@ from tensorflow.python.tools.optimize_for_inference_lib import optimize_for_infe
 
 
 def load_graph(frozen_graph_filename):
-    with tf.gfile.GFile(frozen_graph_filename, "rb") as f:
-        graph_def = tf.GraphDef()
+    with tf.io.gfile.GFile(frozen_graph_filename, "rb") as f:
+        graph_def = tf.compat.v1.GraphDef()
         graph_def.ParseFromString(f.read())
 
     with tf.Graph().as_default() as graph:
         tf.import_graph_def(graph_def)
     return graph
+    
 
-
+### UPD old version to tf2/working with tf 1.x
 def freeze_keras_model(model, export_path=None, clear_devices=True):
     """
     Freezes the state of a session into a pruned computation graph.
@@ -22,9 +23,11 @@ def freeze_keras_model(model, export_path=None, clear_devices=True):
     @param clear_devices Remove the device directives from the graph for better portability.
     @return The frozen graph definition.
     """
+    from tensorflow.compat.v1.graph_util import convert_variables_to_constants
+    from tensorflow.python.tools.optimize_for_inference_lib import optimize_for_inference
     
-    sess = tf.keras.backend.get_session()
-    graph = sess.graph
+    session = tf.compat.v1.keras.backend.get_session()
+    graph = session.graph
     
     with graph.as_default():
 
@@ -42,10 +45,10 @@ def freeze_keras_model(model, export_path=None, clear_devices=True):
         tmp_g = optimize_for_inference(
             tmp_g, input_ops, output_ops, dtypes, False)
         
-        tmp_g = convert_variables_to_constants(sess, tmp_g, output_ops)
+        tmp_g = convert_variables_to_constants(session, tmp_g, output_ops)
         
         if export_path is not None:
-            with tf.gfile.GFile(export_path, "wb") as f:
+            with tf.io.gfile.GFile(export_path, "wb") as f:
                 f.write(tmp_g.SerializeToString())
         
         return tmp_g
