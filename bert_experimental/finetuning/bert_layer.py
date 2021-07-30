@@ -163,10 +163,11 @@ class BertLayer(tf.keras.layers.Layer):
         super(BertLayer, self).get_config()
         return config_dict
 
-class StatefulBertLayer(tf.keras.layers.Layer):
+ class StatefulBertLayer(tf.keras.layers.Layer):
     def __init__(self, bert_path, seq_len=64, n_tune_layers=3, 
                  pooling="cls", do_preprocessing=True, verbose=False,
                  tune_embeddings=False, trainable=True, use_layers=None, 
+                 mode = 'bert',
                  as_dict=False, **kwargs):
 
         self.trainable = trainable
@@ -180,7 +181,8 @@ class StatefulBertLayer(tf.keras.layers.Layer):
         self.pooling = pooling
         self.bert_path = bert_path
         self.use_layers = use_layers
-
+        self.mode = mode
+        
         self.var_per_encoder = 16
         if self.pooling not in ["cls", "mean", "sqrt_mean", None]:
             raise NameError(
@@ -237,7 +239,12 @@ class StatefulBertLayer(tf.keras.layers.Layer):
         tokenization_info = self.bert(signature="tokenization_info", as_dict=True)
         vocab_file, do_lower_case = sess.run([tokenization_info["vocab_file"],
                                               tokenization_info["do_lower_case"]])
-        self.preprocessor = build_preprocessor(vocab_file, self.seq_len, do_lower_case)
+        
+        if self.mode=='roberta':
+            self.preprocessor = build_preprocessor(voc_path= vocab_file, seq_len=self.seq_len, lower=do_lower_case, mode='bpe')
+        else:
+            self.preprocessor = build_preprocessor(voc_path= vocab_file, seq_len=self.seq_len, lower=do_lower_case)
+
 
     def initialize_module(self):
         sess = tf.compat.v1.keras.backend.get_session()
@@ -275,6 +282,7 @@ class StatefulBertLayer(tf.keras.layers.Layer):
         output = self.bert(inputs=bert_inputs, signature="tokens", as_dict=True)
         
         input_mask = tf.cast(input_mask, tf.float32)
+        mul_mask = lambda x, m: x * tf.expand_dims(m, axis=-1)
             
         seq_output = output["sequence_output"]
         tok_output = mul_mask(output.get("token_output", seq_output), input_mask)
