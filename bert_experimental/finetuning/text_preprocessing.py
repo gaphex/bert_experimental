@@ -1,9 +1,10 @@
-import re
-import tensorflow as tf
-import numpy as np
 import collections
 import unicodedata
 
+import re
+import tensorflow as tf
+from .tokenization_roberta import RobertaTokenizer
+import numpy as np
 
 class FullTokenizer(object):
     """Runs end-to-end tokenziation."""
@@ -321,8 +322,15 @@ def whitespace_tokenize(text):
     return tokens
 
 
-def convert_examples_to_features(examples, seq_length, tokenizer):
+def convert_examples_to_features(examples, seq_length, tokenizer, mode):
     """Loads a data file into a list of `InputBatch`s."""
+    
+    if mode == 'wordpiece':
+        cls_ = "[CLS]"
+        sep_ = "[SEP]"
+    else:
+        cls_ = "<s>"
+        sep_ = "</s>"
 
     features = []
     for (ex_index, example) in enumerate(examples):
@@ -362,19 +370,19 @@ def convert_examples_to_features(examples, seq_length, tokenizer):
         # the entire model is fine-tuned.
         tokens = []
         input_type_ids = []
-        tokens.append("[CLS]")
+        tokens.append(cls_)
         input_type_ids.append(0)
         for token in tokens_a:
             tokens.append(token)
             input_type_ids.append(0)
-        tokens.append("[SEP]")
+        tokens.append(sep_)
         input_type_ids.append(0)
 
         if tokens_b:
             for token in tokens_b:
                 tokens.append(token)
                 input_type_ids.append(1)
-            tokens.append("[SEP]")
+            tokens.append(sep_)
             input_type_ids.append(1)
 
         input_ids = tokenizer.convert_tokens_to_ids(tokens)
@@ -453,11 +461,20 @@ def features_to_arrays(features):
             np.array(all_segment_ids, dtype='int32'))
 
 
-def build_preprocessor(voc_path, seq_len, lower=True):
+def build_preprocessor(voc_path, seq_len, lower=True,  mode = 'wordpiece'):
     tokenizer = FullTokenizer(vocab_file=voc_path, do_lower_case=lower)
     EMPTY_STR = ""
     PAD_STR = "pad"
     NULL_VAL = 0
+    
+    if mode == 'wordpiece':
+        tokenizer = FullTokenizer(vocab_file=voc_path, do_lower_case=lower)  
+
+    else:
+        #print(voc_path)
+        #print(b'/'.join(voc_path.split(b'/')[:-1])+b'/merges.txt', type(b'/'.join(voc_path.split(b'/')[:-1])+b'/merges.txt'))
+        tokenizer= RobertaTokenizer(vocab_file=voc_path, merges_file= b'/'.join(voc_path.split(b'/')[:-1])+b'/merges.txt')
+        PAD_STR = "<pad>"
 
     def strings_to_arrays(str_list):
         str_list = np.atleast_1d(str_list).reshape((-1,))
@@ -469,7 +486,7 @@ def build_preprocessor(voc_path, seq_len, lower=True):
         for example in read_examples(str_list):
             examples.append(example)
 
-        features = convert_examples_to_features(examples, seq_len, tokenizer)
+        features = convert_examples_to_features(examples, seq_len, tokenizer, mode)
         arrays = features_to_arrays(features)
 
         for arr in arrays:
@@ -478,4 +495,3 @@ def build_preprocessor(voc_path, seq_len, lower=True):
         return arrays
 
     return strings_to_arrays
-    
