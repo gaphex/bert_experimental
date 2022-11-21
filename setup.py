@@ -15,7 +15,7 @@ setup(
     packages=find_packages(),
     zip_safe=False,
     install_requires=[
-        'tensorflow>=1.15, <2.0',
+        'tensorflow>=1.15, <3.0',
         'tensorflow-hub==0.7.0',
         'numpy'
     ],
